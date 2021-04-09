@@ -7,14 +7,12 @@ import ast
 import logging
 import random
 
-DF_PATH = " "
-CONNECTION_STRING = " "
+DF_PATH = "/Users/camilla.scuffi/Downloads/export.csv"
+CONNECTION_STRING = 'Endpoint=sb://airbnb-dev.servicebus.windows.net/;SharedAccessKeyName=databricks;SharedAccessKey=s7MDt9sgLMw6163jGvNLYrLx9/j50KFyT4Ymavf8OV8=;EntityPath=airbnb-calendar'
 EVENTHUB_NAME = "airbnb-calendar"
 EH_NAMESPACE = "airbnb-dev"
-logger = logging.getLogger("logger")
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-logger.addHandler(ch)
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+
 
 def get_parser(df_path, connection_string, eventhub_name, eh_namespace):
 
@@ -70,7 +68,7 @@ async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate
         while len(messages) > 0:
             await asyncio.sleep(rate)
             if len(messages) >= batch_size:
-                logger.warning(f'sending {batch_size} messages from {df} to partition {partition_id}')
+                logging.info(f'sending {batch_size} messages from {df} to partition {partition_id}')
                 send_messages = random.sample(messages, batch_size)
                 event_data_batch = await producer.create_batch(partition_id=partition_id)
                 for message in send_messages:
@@ -92,7 +90,7 @@ async def main():
     tasks = []
     tasks.append(asyncio.create_task(send_messages(messages=get_json_list(add_join_col(args.df_path)),
                                                    partition_id=0, df="original df")))
-    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(generate_random_data(add_join_col(args.df_path))),
+    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(additional_col(add_join_col(args.df_path))),
                                                    partition_id=0, df="additional df")))
     await asyncio.gather(*tasks)
 
