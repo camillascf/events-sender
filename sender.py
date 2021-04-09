@@ -16,8 +16,8 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
-
 def get_parser(df_path, connection_string, eventhub_name, eh_namespace):
+
     pa = argparse.ArgumentParser()
     pa.add_argument('--df_path', default=DF_PATH)
     pa.add_argument('--connection_string', default=CONNECTION_STRING)
@@ -25,7 +25,10 @@ def get_parser(df_path, connection_string, eventhub_name, eh_namespace):
     pa.add_argument('--namespace', default=EH_NAMESPACE)
     return pa
 
-def get_df(df_path):
+def add_join_col(df_path):
+    '''
+    takes a path to a csv file with a single column containing json-like rows 
+    '''
     df = pd.read_csv(df_path)
     df["join_col"] = [",\"join_col\""+f":{str(i)}"+"}" for i in range(len(df))]
     df["new"] = df["body"].apply(lambda x: x[:-1])
@@ -36,7 +39,6 @@ def get_df(df_path):
 
 def get_json_list(df):
     '''
-
     takes a pandas df with json rows
     :return: list of string json events
     '''
@@ -44,7 +46,11 @@ def get_json_list(df):
     return res
 
 
-def generate_random_data(df):
+def additional_col(df):
+    '''
+    amends the json like column of the dataframe so that it includes a new key additional_col and assigns random letters to it
+    and returns the dataframe
+    '''
     additional_col_values = ["a","i","r","b","n","b"]
     add_df = df["body"].apply(lambda x: x[:-1]+f",\"additional_col\":\"{random.sample(additional_col_values,1)[0]}\""+"}") \
         .apply(lambda x: ast.literal_eval(x))\
@@ -54,6 +60,9 @@ def generate_random_data(df):
     return pd.DataFrame(res)
 
 async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate=8):
+    '''
+    coroutine that sends batches of chosen :batch_size every :rate seconds
+    '''
     producer = EventHubProducerClient.from_connection_string(conn_str=args.connection_string,
                                                              eventhub_name=args.eventhub_name)
 
@@ -76,10 +85,14 @@ async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate
                     await producer.send_batch(event_data_batch)
 
 async def main():
+    '''
+    runs two coroutines that sends events to chosen partitions of the eventhub
+    '''
+
     tasks = []
-    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(get_df(args.df_path)),
+    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(add_join_col(args.df_path)),
                                                    partition_id=0, df="original df")))
-    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(generate_random_data(get_df(args.df_path))),
+    tasks.append(asyncio.create_task(send_messages(messages=get_json_list(generate_random_data(add_join_col(args.df_path))),
                                                    partition_id=0, df="additional df")))
     await asyncio.gather(*tasks)
 
