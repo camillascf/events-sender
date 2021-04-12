@@ -8,7 +8,7 @@ import logging
 import random
 
 DF_PATH = "/Users/camilla.scuffi/Downloads/export.csv"
-CONNECTION_STRING = 'Endpoint=sb://airbnb-dev.servicebus.windows.net/;SharedAccessKeyName=databricks;SharedAccessKey=s7MDt9sgLMw6163jGvNLYrLx9/j50KFyT4Ymavf8OV8=;EntityPath=airbnb-calendar'
+CONNECTION_STRING = ''
 EVENTHUB_NAME = "airbnb-calendar"
 EH_NAMESPACE = "airbnb-dev"
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
