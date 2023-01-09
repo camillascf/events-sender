@@ -7,15 +7,15 @@ import ast
 import logging
 import random
 
-DF_PATH = "/Users/camilla.scuffi/Downloads/export.csv"
+
+DF_PATH = ""
 CONNECTION_STRING = ''
-EVENTHUB_NAME = "airbnb-calendar"
-EH_NAMESPACE = "airbnb-dev"
+EVENTHUB_NAME = ""
+EH_NAMESPACE = ""
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
 def get_parser(df_path, connection_string, eventhub_name, eh_namespace):
-
     pa = argparse.ArgumentParser()
     pa.add_argument('--df_path', default=DF_PATH)
     pa.add_argument('--connection_string', default=CONNECTION_STRING)
@@ -23,17 +23,18 @@ def get_parser(df_path, connection_string, eventhub_name, eh_namespace):
     pa.add_argument('--namespace', default=EH_NAMESPACE)
     return pa
 
+
 def add_join_col(df_path):
     '''
-    takes a path to a csv file with a single column containing json-like rows 
+    takes as input a csv path with a single column containing json-like rows
     '''
     df = pd.read_csv(df_path)
     df["join_col"] = [",\"join_col\""+f":{str(i)}"+"}" for i in range(len(df))]
     df["new"] = df["body"].apply(lambda x: x[:-1])
     df["body"] = df["new"] + df["join_col"]
     df.drop(["join_col", "new"], axis=1, inplace=True)
-
     return df
+
 
 def get_json_list(df):
     '''
@@ -57,13 +58,13 @@ def additional_col(df):
     res = pd.DataFrame(add_df)
     return pd.DataFrame(res)
 
-async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate=8):
+
+async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate=6):
     '''
     coroutine that sends batches of chosen :batch_size every :rate seconds
     '''
     producer = EventHubProducerClient.from_connection_string(conn_str=args.connection_string,
                                                              eventhub_name=args.eventhub_name)
-
     async with producer:
         while len(messages) > 0:
             await asyncio.sleep(rate)
@@ -76,17 +77,17 @@ async def send_messages(messages, partition_id: str, df:str, batch_size=10, rate
                     await producer.send_batch(event_data_batch)
                     messages = [el for el in messages if el not in send_messages]
             else:
-                logger.warning(f'sending last {len(messages)} messages from {df} to partition {partition_id}')
+                logging.info(f'sending last {len(messages)} messages from {df} to partition {partition_id}')
                 event_data_batch = await producer.create_batch(partition_id=partition_id)
                 for message in messages:
                     event_data_batch.add(EventData(str(message)))
                     await producer.send_batch(event_data_batch)
 
+
 async def main():
     '''
     runs two coroutines that sends events to chosen partitions of the eventhub
     '''
-
     tasks = []
     tasks.append(asyncio.create_task(send_messages(messages=get_json_list(add_join_col(args.df_path)),
                                                    partition_id=0, df="original df")))
